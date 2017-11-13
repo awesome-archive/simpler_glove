@@ -8,5 +8,5 @@ Oringal glove model: https://github.com/stanfordnlp/GloVe
 
     $ git clone http://github.com/stanfordnlp/glove
     $ cd glove && make
-    $ ./run.sh
+    $ ./demo.sh
 
