@@ -94,7 +94,7 @@ inline real check_nan(real update) {
 
 /* Train the GloVe model */
 void *glove_thread(void *vid) {
-    long long a, b ,l1, l2;
+    long long a, b ,l;
     long long id = *(long long*)vid;
     CREC cr;
     real diff, fdiff, temp1, temp2;
@@ -111,13 +111,12 @@ void *glove_thread(void *vid) {
         if (cr.word1 < 1 || cr.word2 < 1) { continue; }
 
         /* Get location of words in W & gradsq */
-        l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
-        l2 = (cr.word2 - 1LL) * (vector_size + 1); // shift by vocab_size to get separate vectors for context words
+        l = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
 
         /* Calculate cost, save diff for gradients */
         diff = 0;
-        for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
-        diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
+        for (b = 0; b < vector_size; b++) diff += W[b + l] * W[b + l]; // dot product of word and context word vector
+        diff += W[vector_size + l] + W[vector_size + l] - log(cr.val); // add separate bias for each word
         fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
         // Check for NaN and inf() in the diffs.
@@ -134,29 +133,29 @@ void *glove_thread(void *vid) {
         real W_updates2_sum = 0;
         for (b = 0; b < vector_size; b++) {
             // learning rate times gradient for word vectors
-            temp1 = fdiff * W[b + l2];
-            temp2 = fdiff * W[b + l1];
+            temp1 = fdiff * W[b + l];
+            temp2 = fdiff * W[b + l];
             // adaptive updates
-            W_updates1[b] = temp1 / sqrt(gradsq[b + l1]);
-            W_updates2[b] = temp2 / sqrt(gradsq[b + l2]);
+            W_updates1[b] = temp1 / sqrt(gradsq[b + l]);
+            W_updates2[b] = temp2 / sqrt(gradsq[b + l]);
             W_updates1_sum += W_updates1[b];
             W_updates2_sum += W_updates2[b];
-            gradsq[b + l1] += temp1 * temp1;
-            gradsq[b + l2] += temp2 * temp2;
+            gradsq[b + l] += temp1 * temp1;
+            gradsq[b + l] += temp2 * temp2;
         }
         if (!isnan(W_updates1_sum) && !isinf(W_updates1_sum) && !isnan(W_updates2_sum) && !isinf(W_updates2_sum)) {
             for (b = 0; b < vector_size; b++) {
-                W[b + l1] -= W_updates1[b];
-                W[b + l2] -= W_updates2[b];
+                W[b + l] -= W_updates1[b];
+                W[b + l] -= W_updates2[b];
             }
         }
 
         // updates for bias terms
-        W[vector_size + l1] -= check_nan(fdiff / sqrt(gradsq[vector_size + l1]));
-        W[vector_size + l2] -= check_nan(fdiff / sqrt(gradsq[vector_size + l2]));
+        W[vector_size + l] -= check_nan(fdiff / sqrt(gradsq[vector_size + l]));
+        W[vector_size + l] -= check_nan(fdiff / sqrt(gradsq[vector_size + l]));
         fdiff *= fdiff;
-        gradsq[vector_size + l1] += fdiff;
-        gradsq[vector_size + l2] += fdiff;
+        gradsq[vector_size + l] += fdiff;
+        gradsq[vector_size + l] += fdiff;
 
     }
     free(W_updates1);
