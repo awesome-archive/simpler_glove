@@ -74,7 +74,7 @@ void initialize_parameters() {
         exit(1);
     }
     a = posix_memalign((void **)&gradsq, 128, vocab_size * (vector_size + 1) * sizeof(real)); // Might perform better than malloc
-	if (gradsq == NULL) {
+    if (gradsq == NULL) {
         fprintf(stderr, "Error allocating memory for gradsq\n");
         exit(1);
     }
@@ -94,7 +94,7 @@ inline real check_nan(real update) {
 
 /* Train the GloVe model */
 void *glove_thread(void *vid) {
-    long long a, b ,l;
+    long long a, b ,l1, l2;
     long long id = *(long long*)vid;
     CREC cr;
     real diff, fdiff, temp1, temp2;
@@ -111,12 +111,13 @@ void *glove_thread(void *vid) {
         if (cr.word1 < 1 || cr.word2 < 1) { continue; }
 
         /* Get location of words in W & gradsq */
-        l = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
+        l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
+        l2 = (cr.word2 - 1LL) * (vector_size + 1); // context word vector is as same as center word vector
 
         /* Calculate cost, save diff for gradients */
         diff = 0;
-        for (b = 0; b < vector_size; b++) diff += W[b + l] * W[b + l]; // dot product of word and context word vector
-        diff += W[vector_size + l] + W[vector_size + l] - log(cr.val); // add separate bias for each word
+        for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
+        diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
         fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
         // Check for NaN and inf() in the diffs.
@@ -133,29 +134,29 @@ void *glove_thread(void *vid) {
         real W_updates2_sum = 0;
         for (b = 0; b < vector_size; b++) {
             // learning rate times gradient for word vectors
-            temp1 = fdiff * W[b + l];
-            temp2 = fdiff * W[b + l];
+            temp1 = fdiff * W[b + l2];
+            temp2 = fdiff * W[b + l1];
             // adaptive updates
-            W_updates1[b] = temp1 / sqrt(gradsq[b + l]);
-            W_updates2[b] = temp2 / sqrt(gradsq[b + l]);
+            W_updates1[b] = temp1 / sqrt(gradsq[b + l1]);
+            W_updates2[b] = temp2 / sqrt(gradsq[b + l2]);
             W_updates1_sum += W_updates1[b];
             W_updates2_sum += W_updates2[b];
-            gradsq[b + l] += temp1 * temp1;
-            gradsq[b + l] += temp2 * temp2;
+            gradsq[b + l1] += temp1 * temp1;
+            gradsq[b + l2] += temp2 * temp2;
         }
         if (!isnan(W_updates1_sum) && !isinf(W_updates1_sum) && !isnan(W_updates2_sum) && !isinf(W_updates2_sum)) {
             for (b = 0; b < vector_size; b++) {
-                W[b + l] -= W_updates1[b];
-                W[b + l] -= W_updates2[b];
+                W[b + l1] -= W_updates1[b];
+                W[b + l2] -= W_updates2[b];
             }
         }
 
         // updates for bias terms
-        W[vector_size + l] -= check_nan(fdiff / sqrt(gradsq[vector_size + l]));
-        W[vector_size + l] -= check_nan(fdiff / sqrt(gradsq[vector_size + l]));
+        W[vector_size + l1] -= check_nan(fdiff / sqrt(gradsq[vector_size + l1]));
+        W[vector_size + l2] -= check_nan(fdiff / sqrt(gradsq[vector_size + l2]));
         fdiff *= fdiff;
-        gradsq[vector_size + l] += fdiff;
-        gradsq[vector_size + l] += fdiff;
+        gradsq[vector_size + l1] += fdiff;
+        gradsq[vector_size + l2] += fdiff;
 
     }
     free(W_updates1);
@@ -220,7 +221,7 @@ int save_params(int nb_iter) {
         fid = fopen(vocab_file, "r");
         sprintf(format,"%%%ds",MAX_STRING_LENGTH);
         if (fid == NULL) {fprintf(stderr, "Unable to open file %s.\n",vocab_file); return 1;}
-	if (write_header) fprintf(fout, "%ld %d\n", vocab_size, vector_size);
+    if (write_header) fprintf(fout, "%ld %d\n", vocab_size, vector_size);
         for (a = 0; a < vocab_size; a++) {
             if (fscanf(fid,format,word) == 0) return 1;
             // input vocab cannot contain special <unk> keyword
@@ -363,8 +364,8 @@ int main(int argc, char **argv) {
         printf("Usage options:\n");
         printf("\t-verbose <int>\n");
         printf("\t\tSet verbosity: 0, 1, or 2 (default)\n");
-	printf("\t-write-header <int>\n");
-	printf("\t\tIf 1, write vocab_size/vector_size as first line. Do nothing if 0 (default).\n");
+    printf("\t-write-header <int>\n");
+    printf("\t\tIf 1, write vocab_size/vector_size as first line. Do nothing if 0 (default).\n");
         printf("\t-vector-size <int>\n");
         printf("\t\tDimension of word vector representations (excluding bias term); default 50\n");
         printf("\t-threads <int>\n");
@@ -399,7 +400,7 @@ int main(int argc, char **argv) {
         printf("./glove -input-file cooccurrence.shuf.bin -vocab-file vocab.txt -save-file vectors -gradsq-file gradsq -verbose 2 -vector-size 100 -threads 16 -alpha 0.75 -x-max 100.0 -eta 0.05 -binary 2 -model 2\n\n");
         result = 0;
     } else {
-	if ((i = find_arg((char *)"-write-header", argc, argv)) > 0) write_header = atoi(argv[i + 1]);
+    if ((i = find_arg((char *)"-write-header", argc, argv)) > 0) write_header = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-verbose", argc, argv)) > 0) verbose = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-vector-size", argc, argv)) > 0) vector_size = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-iter", argc, argv)) > 0) num_iter = atoi(argv[i + 1]);
