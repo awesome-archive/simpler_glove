@@ -212,7 +212,7 @@ int save_params(int nb_iter) {
 
         fout = fopen(output_file,"wb");
         if (fout == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_W_file); return 1;}
-        for (a = 0; a < 2 * (long long)vocab_size * vector_size; a++) fwrite(&W[a], sizeof(real), 1,fout);
+        for (a = 0; a < (long long)vocab_size * vector_size; a++) fwrite(&W[a], sizeof(real), 1,fout);
         fclose(fout);
         if (save_gradsq > 0) {
             if (nb_iter <= 0)
@@ -222,7 +222,7 @@ int save_params(int nb_iter) {
 
             fgs = fopen(output_file_gsq,"wb");
             if (fgs == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_gradsq_file); return 1;}
-            for (a = 0; a < 2 * (long long)vocab_size * vector_size; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
+            for (a = 0; a < (long long)vocab_size * vector_size; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
             fclose(fgs);
         }
     }
