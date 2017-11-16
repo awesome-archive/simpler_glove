@@ -357,17 +357,17 @@ int get_cooccurrence() {
             w1 = history[k % window_size]; // Context word (frequency rank)
             if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
                 bigram_table[lookup[w1-1] + w2 - 2] += 1.0/((real)(j-k)); // Weight by inverse of distance between words
-                if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0/((real)(j-k)); // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
+                if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0; // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
             }
             else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
                 cr[ind].word1 = w1;
                 cr[ind].word2 = w2;
-                cr[ind].val = 1.0/((real)(j-k));
+                cr[ind].val = 1.0;
                 ind++; // Keep track of how full temporary buffer is
                 if (symmetric > 0) { // Symmetric context
                     cr[ind].word1 = w2;
                     cr[ind].word2 = w1;
-                    cr[ind].val = 1.0/((real)(j-k));
+                    cr[ind].val = 1.0;
                     ind++;
                 }
             }
