@@ -6,7 +6,7 @@ Oringal glove model: https://github.com/stanfordnlp/GloVe
 
 ## Train word vectors on a new corpus
 
-    $ git clone http://github.com/stanfordnlp/glove
+    $ git clone https://github.com/bojone/simpler_glove
     $ cd glove && make
     $ ./demo.sh
 
