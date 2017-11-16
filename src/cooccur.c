@@ -356,7 +356,7 @@ int get_cooccurrence() {
         for (k = j - 1; k >= ( (j > window_size) ? j - window_size : 0 ); k--) { // Iterate over all words to the left of target word, but not past beginning of line
             w1 = history[k % window_size]; // Context word (frequency rank)
             if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
-                bigram_table[lookup[w1-1] + w2 - 2] += 1.0/((real)(j-k)); // Weight by inverse of distance between words
+                bigram_table[lookup[w1-1] + w2 - 2] += 1.0; // Weight by inverse of distance between words
                 if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0; // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
             }
             else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
