@@ -82,18 +82,6 @@ void initialize_parameters() {
 
 }
 
-void get_total_cooccurrence() {
-    CREC cr;
-    FILE *fin;
-    fin = fopen(input_file, "rb");
-    while (!feof(fin)) {
-        fread(&cr, sizeof(CREC), 1, fin);
-        if (cr.word1 < 1 || cr.word2 < 1) { continue; }
-        total_cooccurrence += cr.val;
-    }
-    fclose(fin);
-}
-
 void read_vocab_file() {
     if (verbose > 1) fprintf(stderr, "Reading vocab from file \"%s\"...\n", vocab_file);
     FILE *fid;
@@ -112,6 +100,20 @@ void read_vocab_file() {
         id++;
     }
     fclose(fid);
+}
+
+void get_total_cooccurrence() {
+    if (verbose > 1) fprintf(stderr, "Reading cooccurrence from file \"%s\"...\n", input_file);
+    CREC cr;
+    FILE *fin;
+    fin = fopen(input_file, "rb");
+    if (fin == NULL) {fprintf(stderr, "Unable to open cooccurrence file %s.\n",input_file);}
+    while (!feof(fin)) {
+        fread(&cr, sizeof(CREC), 1, fin);
+        if (cr.word1 < 1 || cr.word2 < 1) { continue; }
+        total_cooccurrence += cr.val;
+    }
+    fclose(fin);
 }
 
 inline real check_nan(real update) {
@@ -311,8 +313,8 @@ int train_glove() {
     if (verbose > 1) fprintf(stderr,"done.\n");
     if (verbose > 0) fprintf(stderr,"vector size: %d\n", vector_size);
     if (verbose > 0) fprintf(stderr,"vocab size: %lld\n", vocab_size);
-    if (verbose > 0) fprintf(stderr,"total word: %lf\n", total_word);
-    if (verbose > 0) fprintf(stderr,"total cooccurrence: %lf\n", total_cooccurrence);
+    if (verbose > 0) fprintf(stderr,"total word: %.2f\n", total_word);
+    if (verbose > 0) fprintf(stderr,"total cooccurrence: %.2f\n", total_cooccurrence);
     if (verbose > 0) fprintf(stderr,"x_max: %lf\n", x_max);
     if (verbose > 0) fprintf(stderr,"alpha: %lf\n", alpha);
     pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
