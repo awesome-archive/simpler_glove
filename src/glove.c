@@ -311,8 +311,8 @@ int train_glove() {
     if (verbose > 1) fprintf(stderr,"done.\n");
     if (verbose > 0) fprintf(stderr,"vector size: %d\n", vector_size);
     if (verbose > 0) fprintf(stderr,"vocab size: %lld\n", vocab_size);
-    if (verbose > 0) fprintf(stderr,"total word: %f\n", total_word);
-    if (verbose > 0) fprintf(stderr,"total cooccurrence: %f\n", total_cooccurrence);
+    if (verbose > 0) fprintf(stderr,"total word: %lf\n", total_word);
+    if (verbose > 0) fprintf(stderr,"total cooccurrence: %lf\n", total_cooccurrence);
     if (verbose > 0) fprintf(stderr,"x_max: %lf\n", x_max);
     if (verbose > 0) fprintf(stderr,"alpha: %lf\n", alpha);
     pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
