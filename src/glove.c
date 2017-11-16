@@ -49,12 +49,12 @@ int num_iter = 25; // Number of full passes through cooccurrence matrix
 int vector_size = 50; // Word vector size
 int save_gradsq = 0; // By default don't save squared gradient values
 int use_binary = 0; // 0: save as text files; 1: save as binary; 2: both. For binary, save both word and context word vectors.
-int model = 2; // For text file output only. 0: concatenate word and context vectors (and biases) i.e. save everything; 1: Just save word vectors (no bias); 2: Save (word + context word) vectors (no biases)
 int checkpoint_every = 0; // checkpoint the model for every checkpoint_every iterations. Do nothing if checkpoint_every <= 0
-real eta = 0.05; // Initial learning rate
+real eta = 0.1; // Initial learning rate
 real alpha = 0.75, x_max = 100.0; // Weighting function parameters, not extremely sensitive to corpus, though may need adjustment for very small or very large corpora
 real *W, *gradsq, *cost;
-long long num_lines, *lines_per_thread, vocab_size;
+real total_word, total_cooccurrence; //Total word and cooccurrence
+long long num_lines, *lines_per_thread, vocab_size, *WF;
 char *vocab_file, *input_file, *save_W_file, *save_gradsq_file;
 
 /* Efficient string comparison */
@@ -65,22 +65,53 @@ int scmp( char *s1, char *s2 ) {
 
 void initialize_parameters() {
     long long a, b;
-    vector_size++; // Temporarily increment to allocate space for bias
 
     /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
-    a = posix_memalign((void **)&W, 128, vocab_size * (vector_size + 1) * sizeof(real)); // Might perform better than malloc
+    a = posix_memalign((void **)&W, 128, vocab_size * vector_size * sizeof(real)); // Might perform better than malloc
     if (W == NULL) {
         fprintf(stderr, "Error allocating memory for W\n");
         exit(1);
     }
-    a = posix_memalign((void **)&gradsq, 128, vocab_size * (vector_size + 1) * sizeof(real)); // Might perform better than malloc
+    a = posix_memalign((void **)&gradsq, 128, vocab_size * vector_size * sizeof(real)); // Might perform better than malloc
     if (gradsq == NULL) {
         fprintf(stderr, "Error allocating memory for gradsq\n");
         exit(1);
     }
     for (b = 0; b < vector_size; b++) for (a = 0; a < vocab_size; a++) W[a * vector_size + b] = (rand() / (real)RAND_MAX - 0.5) / vector_size;
     for (b = 0; b < vector_size; b++) for (a = 0; a < vocab_size; a++) gradsq[a * vector_size + b] = 1.0; // So initial value of eta is equal to initial learning rate
-    vector_size--;
+
+}
+
+void get_total_cooccurrence() {
+    CREC cr;
+    FILE *fin;
+    fin = fopen(input_file, "rb");
+    while (!feof(fin)) {
+        fread(&cr, sizeof(CREC), 1, fin);
+        if (cr.word1 < 1 || cr.word2 < 1) { continue; }
+        total_cooccurrence += cr.val;
+    }
+    fclose(fin);
+}
+
+void read_vocab_file() {
+    if (verbose > 1) fprintf(stderr, "Reading vocab from file \"%s\"...\n", vocab_file);
+    FILE *fid;
+    char format[20], str[MAX_STRING_LENGTH + 1];
+    long long id=0, count, i;
+    vocab_size = 0;
+    fid = fopen(vocab_file, "r");
+    if (fid == NULL) {fprintf(stderr, "Unable to open vocab file %s.\n",vocab_file);}
+    while ((i = getc(fid)) != EOF) if (i == '\n') vocab_size++; // Count number of entries in vocab_file
+    fseeko(fid, 0, SEEK_SET);
+    WF = malloc(sizeof(long long) * vocab_size);
+    sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH);
+    while (fscanf(fid, format, str, &count) != EOF) {
+        WF[id] = count;
+        total_word += count;
+        id++;
+    }
+    fclose(fid);
 }
 
 inline real check_nan(real update) {
@@ -102,23 +133,24 @@ void *glove_thread(void *vid) {
     fin = fopen(input_file, "rb");
     fseeko(fin, (num_lines / num_threads * id) * (sizeof(CREC)), SEEK_SET); //Threads spaced roughly equally throughout file
     cost[id] = 0;
-
+    
     real* W_updates1 = (real*)malloc(vector_size * sizeof(real));
     real* W_updates2 = (real*)malloc(vector_size * sizeof(real));
     for (a = 0; a < lines_per_thread[id]; a++) {
         fread(&cr, sizeof(CREC), 1, fin);
         if (feof(fin)) break;
         if (cr.word1 < 1 || cr.word2 < 1) { continue; }
-
+        
         /* Get location of words in W & gradsq */
-        l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
-        l2 = (cr.word2 - 1LL) * (vector_size + 1); // context word vector is as same as center word vector
-
+        l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
+        l2 = (cr.word2 - 1LL) * vector_size; // context words in the same vector space as center words
+        
         /* Calculate cost, save diff for gradients */
         diff = 0;
         for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
-        diff += W[vector_size + l1] + W[vector_size + l2] - log(cr.val); // add separate bias for each word
-        fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
+        /* compute the mutual information and then compute the diff */
+        diff -= (log(cr.val) - log(total_cooccurrence) - log(WF[cr.word1-1LL]) - log(WF[cr.word2-1LL]) + 2*log(total_word));
+        fdiff = pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
         // Check for NaN and inf() in the diffs.
         if (isnan(diff) || isnan(fdiff) || isinf(diff) || isinf(fdiff)) {
@@ -129,20 +161,19 @@ void *glove_thread(void *vid) {
         cost[id] += 0.5 * fdiff * diff; // weighted squared error
 
         /* Adaptive gradient updates */
-        fdiff *= eta; // for ease in calculating gradient
         real W_updates1_sum = 0;
         real W_updates2_sum = 0;
         for (b = 0; b < vector_size; b++) {
             // learning rate times gradient for word vectors
             temp1 = fdiff * W[b + l2];
             temp2 = fdiff * W[b + l1];
-            // adaptive updates
-            W_updates1[b] = temp1 / sqrt(gradsq[b + l1]);
-            W_updates2[b] = temp2 / sqrt(gradsq[b + l2]);
-            W_updates1_sum += W_updates1[b];
-            W_updates2_sum += W_updates2[b];
             gradsq[b + l1] += temp1 * temp1;
             gradsq[b + l2] += temp2 * temp2;
+            // adaptive updates
+            W_updates1[b] = eta * temp1 / sqrt(gradsq[b + l1] + 1e-8);
+            W_updates2[b] = eta * temp2 / sqrt(gradsq[b + l2] + 1e-8);
+            W_updates1_sum += W_updates1[b];
+            W_updates2_sum += W_updates2[b];
         }
         if (!isnan(W_updates1_sum) && !isinf(W_updates1_sum) && !isnan(W_updates2_sum) && !isinf(W_updates2_sum)) {
             for (b = 0; b < vector_size; b++) {
@@ -151,17 +182,10 @@ void *glove_thread(void *vid) {
             }
         }
 
-        // updates for bias terms
-        W[vector_size + l1] -= check_nan(fdiff / sqrt(gradsq[vector_size + l1]));
-        W[vector_size + l2] -= check_nan(fdiff / sqrt(gradsq[vector_size + l2]));
-        fdiff *= fdiff;
-        gradsq[vector_size + l1] += fdiff;
-        gradsq[vector_size + l2] += fdiff;
-
     }
     free(W_updates1);
     free(W_updates2);
-
+    
     fclose(fin);
     pthread_exit(NULL);
 }
@@ -179,7 +203,7 @@ int save_params(int nb_iter) {
     char output_file[MAX_STRING_LENGTH], output_file_gsq[MAX_STRING_LENGTH];
     char *word = malloc(sizeof(char) * MAX_STRING_LENGTH + 1);
     FILE *fid, *fout, *fgs;
-
+    
     if (use_binary > 0) { // Save parameters in binary file
         if (nb_iter <= 0)
             sprintf(output_file,"%s.bin",save_W_file);
@@ -188,7 +212,7 @@ int save_params(int nb_iter) {
 
         fout = fopen(output_file,"wb");
         if (fout == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_W_file); return 1;}
-        for (a = 0; a < (long long)vocab_size * (vector_size + 1); a++) fwrite(&W[a], sizeof(real), 1,fout);
+        for (a = 0; a < 2 * (long long)vocab_size * vector_size; a++) fwrite(&W[a], sizeof(real), 1,fout);
         fclose(fout);
         if (save_gradsq > 0) {
             if (nb_iter <= 0)
@@ -198,7 +222,7 @@ int save_params(int nb_iter) {
 
             fgs = fopen(output_file_gsq,"wb");
             if (fgs == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_gradsq_file); return 1;}
-            for (a = 0; a < (long long)vocab_size * (vector_size + 1); a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
+            for (a = 0; a < 2 * (long long)vocab_size * vector_size; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
             fclose(fgs);
         }
     }
@@ -227,44 +251,35 @@ int save_params(int nb_iter) {
             // input vocab cannot contain special <unk> keyword
             if (strcmp(word, "<unk>") == 0) return 1;
             fprintf(fout, "%s",word);
-            if (model == 0) { // Save all parameters (including bias)
-                for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
-            }
-            if (model == 1) // Save only "word" vectors (without bias)
-                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * (vector_size + 1) + b]);
+            // Save word vectors
+            for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * vector_size + b]);
             fprintf(fout,"\n");
             if (save_gradsq > 0) { // Save gradsq
                 fprintf(fgs, "%s",word);
-                for (b = 0; b < (vector_size + 1); b++) fprintf(fgs," %lf", gradsq[a * (vector_size + 1) + b]);
+                for (b = 0; b < vector_size; b++) fprintf(fgs," %lf", gradsq[a * vector_size + b]);
                 fprintf(fgs,"\n");
             }
             if (fscanf(fid,format,word) == 0) return 1; // Eat irrelevant frequency entry
         }
 
         if (use_unk_vec) {
-            real* unk_vec = (real*)calloc((vector_size + 1), sizeof(real));
-            real* unk_context = (real*)calloc((vector_size + 1), sizeof(real));
+            real* unk_vec = (real*)calloc(vector_size, sizeof(real));
             word = "<unk>";
 
             int num_rare_words = vocab_size < 100 ? vocab_size : 100;
 
             for (a = vocab_size - num_rare_words; a < vocab_size; a++) {
-                for (b = 0; b < (vector_size + 1); b++) {
-                    unk_vec[b] += W[a * (vector_size + 1) + b] / num_rare_words;
-                    unk_context[b] += W[a * (vector_size + 1) + b] / num_rare_words;
+                for (b = 0; b < vector_size; b++) {
+                    unk_vec[b] += W[a * vector_size + b] / num_rare_words;
                 }
             }
 
             fprintf(fout, "%s",word);
-            if (model == 0) { // Save all parameters (including bias)
-                for (b = 0; b < (vector_size + 1); b++) fprintf(fout," %lf", unk_vec[b]);
-            }
-            if (model == 1) // Save only "word" vectors (without bias)
-                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
+            // Save word vectors
+            for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
             fprintf(fout,"\n");
 
             free(unk_vec);
-            free(unk_context);
         }
 
         fclose(fid);
@@ -283,7 +298,7 @@ int train_glove() {
     real total_cost = 0;
 
     fprintf(stderr, "TRAINING MODEL\n");
-
+    
     fin = fopen(input_file, "rb");
     if (fin == NULL) {fprintf(stderr,"Unable to open cooccurrence file %s.\n",input_file); return 1;}
     fseeko(fin, 0, SEEK_END);
@@ -296,11 +311,13 @@ int train_glove() {
     if (verbose > 1) fprintf(stderr,"done.\n");
     if (verbose > 0) fprintf(stderr,"vector size: %d\n", vector_size);
     if (verbose > 0) fprintf(stderr,"vocab size: %lld\n", vocab_size);
+    if (verbose > 0) fprintf(stderr,"total word: %f\n", total_word);
+    if (verbose > 0) fprintf(stderr,"total cooccurrence: %f\n", total_cooccurrence);
     if (verbose > 0) fprintf(stderr,"x_max: %lf\n", x_max);
     if (verbose > 0) fprintf(stderr,"alpha: %lf\n", alpha);
     pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
     lines_per_thread = (long long *) malloc(num_threads * sizeof(long long));
-
+    
     time_t rawtime;
     struct tm *info;
     char time_buffer[80];
@@ -357,7 +374,7 @@ int main(int argc, char **argv) {
     save_W_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
     save_gradsq_file = malloc(sizeof(char) * MAX_STRING_LENGTH);
     int result = 0;
-
+    
     if (argc == 1) {
         printf("GloVe: Global Vectors for Word Representation, v0.2\n");
         printf("Author: Jeffrey Pennington (jpennin@stanford.edu)\n\n");
@@ -380,10 +397,6 @@ int main(int argc, char **argv) {
         printf("\t\tParameter specifying cutoff in weighting function; default 100.0\n");
         printf("\t-binary <int>\n");
         printf("\t\tSave output in binary format (0: text, 1: binary, 2: both); default 0\n");
-        printf("\t-model <int>\n");
-        printf("\t\tModel for word vector output (for text output only); default 2\n");
-        printf("\t\t   0: output all data, including word vectors and bias terms\n");
-        printf("\t\t   1: output word vectors, excluding bias terms\n");
         printf("\t-input-file <file>\n");
         printf("\t\tBinary input file of shuffled cooccurrence data (produced by 'cooccur' and 'shuffle'); default cooccurrence.shuf.bin\n");
         printf("\t-vocab-file <file>\n");
@@ -397,7 +410,7 @@ int main(int argc, char **argv) {
         printf("\t-checkpoint-every <int>\n");
         printf("\t\tCheckpoint a  model every <int> iterations; default 0 (off)\n");
         printf("\nExample usage:\n");
-        printf("./glove -input-file cooccurrence.shuf.bin -vocab-file vocab.txt -save-file vectors -gradsq-file gradsq -verbose 2 -vector-size 100 -threads 16 -alpha 0.75 -x-max 100.0 -eta 0.05 -binary 2 -model 2\n\n");
+        printf("./glove -input-file cooccurrence.shuf.bin -vocab-file vocab.txt -save-file vectors -gradsq-file gradsq -verbose 2 -vector-size 100 -threads 16 -alpha 0.75 -x-max 100.0 -eta 0.05 -binary 2\n\n");
         result = 0;
     } else {
     if ((i = find_arg((char *)"-write-header", argc, argv)) > 0) write_header = atoi(argv[i + 1]);
@@ -410,8 +423,6 @@ int main(int argc, char **argv) {
         if ((i = find_arg((char *)"-x-max", argc, argv)) > 0) x_max = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-eta", argc, argv)) > 0) eta = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-binary", argc, argv)) > 0) use_binary = atoi(argv[i + 1]);
-        if ((i = find_arg((char *)"-model", argc, argv)) > 0) model = atoi(argv[i + 1]);
-        if (model != 0 && model != 1) model = 2;
         if ((i = find_arg((char *)"-save-gradsq", argc, argv)) > 0) save_gradsq = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-vocab-file", argc, argv)) > 0) strcpy(vocab_file, argv[i + 1]);
         else strcpy(vocab_file, (char *)"vocab.txt");
@@ -425,12 +436,9 @@ int main(int argc, char **argv) {
         if ((i = find_arg((char *)"-input-file", argc, argv)) > 0) strcpy(input_file, argv[i + 1]);
         else strcpy(input_file, (char *)"cooccurrence.shuf.bin");
         if ((i = find_arg((char *)"-checkpoint-every", argc, argv)) > 0) checkpoint_every = atoi(argv[i + 1]);
-
-        vocab_size = 0;
-        fid = fopen(vocab_file, "r");
-        if (fid == NULL) {fprintf(stderr, "Unable to open vocab file %s.\n",vocab_file); return 1;}
-        while ((i = getc(fid)) != EOF) if (i == '\n') vocab_size++; // Count number of entries in vocab_file
-        fclose(fid);
+        
+        read_vocab_file();
+        get_total_cooccurrence();
 
         result = train_glove();
         free(cost);
@@ -439,5 +447,6 @@ int main(int argc, char **argv) {
     free(input_file);
     free(save_W_file);
     free(save_gradsq_file);
+    free(WF);
     return result;
 }
