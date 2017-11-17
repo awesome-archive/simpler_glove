@@ -152,7 +152,7 @@ void *glove_thread(void *vid) {
         for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
         /* compute the mutual information and then compute the diff */
         diff -= (log(cr.val) - log(total_cooccurrence) - log(WF[cr.word1-1LL]) - log(WF[cr.word2-1LL]) + 2*log(total_word));
-        fdiff = pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
+        fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
 
         // Check for NaN and inf() in the diffs.
         if (isnan(diff) || isnan(fdiff) || isinf(diff) || isinf(fdiff)) {
