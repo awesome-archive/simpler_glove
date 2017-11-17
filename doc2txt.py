@@ -13,6 +13,11 @@ class Document:
             yield t['content']
 
 import codecs
+import os
+
+if not os.path.exists('tmp'):
+    os.mkdir('tmp')
+
 f = codecs.open('tmp/corpus.txt', 'wa', encoding='utf-8')
 for d in tqdm(Document()):
     f.write(' '.join(d))
