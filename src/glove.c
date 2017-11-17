@@ -110,7 +110,7 @@ void get_total_cooccurrence() {
     if (fin == NULL) {fprintf(stderr, "Unable to open cooccurrence file %s.\n",input_file);}
     while (!feof(fin)) {
         fread(&cr, sizeof(CREC), 1, fin);
-        if (cr.word1 < 1 || cr.word2 < 1) { continue; }
+        if (cr.word1 < 1 || cr.word2 < 1 || cr.word1 == cr.word2) { continue; }
         total_cooccurrence += cr.val;
     }
     fclose(fin);
@@ -141,7 +141,7 @@ void *glove_thread(void *vid) {
     for (a = 0; a < lines_per_thread[id]; a++) {
         fread(&cr, sizeof(CREC), 1, fin);
         if (feof(fin)) break;
-        if (cr.word1 < 1 || cr.word2 < 1) { continue; }
+        if (cr.word1 < 1 || cr.word2 < 1 || cr.word1 == cr.word2) { continue; }
         
         /* Get location of words in W & gradsq */
         l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
