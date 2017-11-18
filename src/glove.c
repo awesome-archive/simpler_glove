@@ -50,6 +50,7 @@ int vector_size = 50; // Word vector size
 int save_gradsq = 0; // By default don't save squared gradient values
 int use_binary = 0; // 0: save as text files; 1: save as binary; 2: both. For binary, save both word and context word vectors.
 int checkpoint_every = 0; // checkpoint the model for every checkpoint_every iterations. Do nothing if checkpoint_every <= 0
+int truncate_weight = 1; // Cooccurrence weight is min(1, (x/x_max)^alpha) if 1 else (x/x_max)^alpha
 real eta = 0.1; // Initial learning rate
 real alpha = 0.75, x_max = 100.0; // Weighting function parameters, not extremely sensitive to corpus, though may need adjustment for very small or very large corpora
 real *W, *gradsq, *cost;
@@ -152,7 +153,10 @@ void *glove_thread(void *vid) {
         for (b = 0; b < vector_size; b++) diff += W[b + l1] * W[b + l2]; // dot product of word and context word vector
         /* compute the mutual information and then compute the diff */
         diff -= (log(cr.val) - log(total_cooccurrence) - log(WF[cr.word1-1LL]) - log(WF[cr.word2-1LL]) + 2*log(total_word));
-        fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; // multiply weighting function (f) with diff
+        if (truncate_weight > 0) { // multiply weighting function (f) with diff
+            fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff;}
+        else {
+            pow(cr.val / x_max, alpha) * diff;}
 
         // Check for NaN and inf() in the diffs.
         if (isnan(diff) || isnan(fdiff) || isinf(diff) || isinf(fdiff)) {
@@ -397,6 +401,8 @@ int main(int argc, char **argv) {
         printf("\t\tParameter in exponent of weighting function; default 0.75\n");
         printf("\t-x-max <float>\n");
         printf("\t\tParameter specifying cutoff in weighting function; default 100.0\n");
+        printf("\t-truncate-weight <int>\n");
+        printf("\t\tCooccurrence weight is min(1, (x/x_max)^alpha) if 1 else (x/x_max)^alpha; default 1\n");
         printf("\t-binary <int>\n");
         printf("\t\tSave output in binary format (0: text, 1: binary, 2: both); default 0\n");
         printf("\t-input-file <file>\n");
@@ -423,6 +429,7 @@ int main(int argc, char **argv) {
         cost = malloc(sizeof(real) * num_threads);
         if ((i = find_arg((char *)"-alpha", argc, argv)) > 0) alpha = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-x-max", argc, argv)) > 0) x_max = atof(argv[i + 1]);
+        if ((i = find_arg((char *)"-truncate-weight", argc, argv)) > 0) truncate_weight = atoi(argv[i + 1]); 
         if ((i = find_arg((char *)"-eta", argc, argv)) > 0) eta = atof(argv[i + 1]);
         if ((i = find_arg((char *)"-binary", argc, argv)) > 0) use_binary = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-save-gradsq", argc, argv)) > 0) save_gradsq = atoi(argv[i + 1]);
