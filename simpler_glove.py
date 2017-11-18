@@ -1,3 +1,5 @@
+#! -*- coding: utf-8 -*-
+
 import numpy as np
 
 class Simpler_Golve:
@@ -14,11 +16,17 @@ class Simpler_Golve:
                 embeddings.append(_[1:])
                 idx += 1
         self.embeddings = np.array(embeddings).astype(float)
+        self.word_size = self.embeddings.shape[1]
         self.id2word = {j:i for i,j in self.word2id.items()}
         self.init_something()
     def init_something(self):
-        self.normalized_embeddings = self.embeddings/np.clip(self.embeddings**2, 1e-8, self.embeddings.max()**2).sum(axis=1).reshape((-1,1))**0.5
+        self.normalized_embeddings = self.noramlize(self.embeddings)
         self.nb_context_words = None
+    def noramlize(self, x):
+        if len(x.shape) > 1:
+            return x/np.clip(x**2, 1e-12, None).sum(axis=1).reshape((-1,1)+x.shape[2:])**0.5
+        else:
+            return x/np.clip(x**2, 1e-12, None).sum()**0.5
     def most_correlative(self, word, topn=20, normalize=True):
         if normalize:
             word_vec = self.normalized_embeddings[self.word2id[word]]
@@ -53,19 +61,31 @@ class Simpler_Golve:
         word_sim = np.dot(self.normalized_embeddings, word_vec)
         word_sim_sort = word_sim.argsort()[::-1]
         return [(self.id2word[i], word_sim[i]) for i in word_sim_sort[:topn]]
-    def sent2vec(self, sent):
-        return self.embeddings[[self.word2id[w] for w in sent if w in self.word2id]].sum(axis=0)
-    def keywords(self, sent):
+    def sent2vec(self, sent, mode='sum'):
+        idxs = [self.word2id[w] for w in sent if w in self.word2id]
+        if idxs:
+            if mode == 'sum':
+                return self.embeddings[idxs].sum(axis=0)
+            elif mode == 'avg':
+                return self.embeddings[idxs].mean(axis=0)
+            else:
+                return np.zeros(self.word_size)
+        else:
+            return np.zeros(self.word_size)
+    def keywords(self, sent, normalize=False):
         word_set = list(set([self.word2id[w] for w in sent if w in self.word2id]))
         word_vec = self.embeddings[word_set]
         sent_vec = self.sent2vec(sent)
+        if normalize:
+            sent_vec = self.noramlize(sent_vec)
+            word_vec = self.normalized_embeddings[word_set]
         word_sim = np.dot(word_vec, sent_vec)
         word_sim_sort = word_sim.argsort()[::-1]
         return [(self.id2word[word_set[i]], word_sim[i]) for i in word_sim_sort]
     def sentence_similarity(self, sent_1, sent_2):
-        sent_vec_1 = self.sent2vec(sent_1)
-        sent_vec_2 = self.sent2vec(sent_2)
-        return np.dot(sent_vec_1,sent_vec_2)/(np.dot(sent_vec_1,sent_vec_1)*np.dot(sent_vec_2,sent_vec_2))**0.5
+        sent_vec_1 = self.normalize(self.sent2vec(sent_1))
+        sent_vec_2 = self.normalize(self.sent2vec(sent_2))
+        return np.dot(sent_vec_1,sent_vec_2)
 
 
 w2v = Simpler_Golve('output/baike.128.glove.txt')
