@@ -321,7 +321,7 @@ int train_glove() {
     if (verbose > 0) fprintf(stderr,"total cooccurrence: %.2f\n", total_cooccurrence);
     if (verbose > 0) fprintf(stderr,"x_max: %lf\n", x_max);
     if (verbose > 0) fprintf(stderr,"alpha: %lf\n", alpha);
-    if (verbose > 0) fprintf(stderr,"truncate-weight: %d\n", truncate_weight);
+    if (verbose > 0) fprintf(stderr,"truncate weight: %d\n", truncate_weight);
     pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
     lines_per_thread = (long long *) malloc(num_threads * sizeof(long long));
     
