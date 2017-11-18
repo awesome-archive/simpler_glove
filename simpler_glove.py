@@ -88,4 +88,5 @@ class Simpler_Golve:
         return np.dot(sent_vec_1,sent_vec_2)
 
 
-w2v = Simpler_Golve('output/baike.128.glove.txt')
+if __name__ == '__main__':
+    w2v = Simpler_Golve('output/baike.128.glove.txt')
