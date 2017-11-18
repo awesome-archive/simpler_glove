@@ -321,6 +321,7 @@ int train_glove() {
     if (verbose > 0) fprintf(stderr,"total cooccurrence: %.2f\n", total_cooccurrence);
     if (verbose > 0) fprintf(stderr,"x_max: %lf\n", x_max);
     if (verbose > 0) fprintf(stderr,"alpha: %lf\n", alpha);
+    if (verbose > 0) fprintf(stderr,"truncate-weight: %d\n", truncate_weight);
     pthread_t *pt = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
     lines_per_thread = (long long *) malloc(num_threads * sizeof(long long));
     
@@ -418,7 +419,7 @@ int main(int argc, char **argv) {
         printf("\t-checkpoint-every <int>\n");
         printf("\t\tCheckpoint a  model every <int> iterations; default 0 (off)\n");
         printf("\nExample usage:\n");
-        printf("./glove -input-file cooccurrence.shuf.bin -vocab-file vocab.txt -save-file vectors -gradsq-file gradsq -verbose 2 -vector-size 100 -threads 16 -alpha 0.75 -x-max 100.0 -eta 0.05 -binary 2\n\n");
+        printf("./glove -input-file cooccurrence.shuf.bin -vocab-file vocab.txt -save-file vectors -gradsq-file gradsq -verbose 2 -vector-size 100 -threads 16 -alpha 0.75 -x-max 100.0 -truncate-weight 0 -eta 0.1 -binary 2\n\n");
         result = 0;
     } else {
     if ((i = find_arg((char *)"-write-header", argc, argv)) > 0) write_header = atoi(argv[i + 1]);
