@@ -154,9 +154,9 @@ void *glove_thread(void *vid) {
         /* compute the mutual information and then compute the diff */
         diff -= (log(cr.val) - log(total_cooccurrence) - log(WF[cr.word1-1LL]) - log(WF[cr.word2-1LL]) + 2*log(total_word));
         if (truncate_weight > 0) { // multiply weighting function (f) with diff
-            fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff;}
+            fdiff = (cr.val > x_max) ? diff : pow(cr.val / x_max, alpha) * diff; }
         else {
-            pow(cr.val / x_max, alpha) * diff;}
+            fdiff = pow(cr.val / x_max, alpha) * diff; }
 
         // Check for NaN and inf() in the diffs.
         if (isnan(diff) || isnan(fdiff) || isinf(diff) || isinf(fdiff)) {
