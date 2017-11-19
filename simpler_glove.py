@@ -86,6 +86,8 @@ class Simpler_Golve:
         sent_vec_1 = self.normalize(self.sent2vec(sent_1))
         sent_vec_2 = self.normalize(self.sent2vec(sent_2))
         return np.dot(sent_vec_1,sent_vec_2)
+    def __getitem__(self, w):
+        return self.embeddings[word2id[w]]
 
 
 if __name__ == '__main__':
