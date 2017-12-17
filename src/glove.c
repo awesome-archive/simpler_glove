@@ -428,7 +428,7 @@ int main(int argc, char **argv) {
         printf("Usage options:\n");
         printf("\t-verbose <int>\n");
         printf("\t\tSet verbosity: 0, 1, or 2 (default)\n");
-        printf("Model and word vector output; default 0\n");
+        printf("\tModel and word vector output; default 0\n");
         printf("\t\t0: center word vectors are same as context word vectors\n");
         printf("\t\t1: different center and context word vectors, output both of them\n");
         printf("\t\t2: different center and context word vectors, output center vectors + context vectors\n");
