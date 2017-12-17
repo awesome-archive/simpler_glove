@@ -68,7 +68,7 @@ int scmp( char *s1, char *s2 ) {
 void initialize_parameters() {
     long long a, b;
     
-    if (model ==0){
+    if (model == 0){
         /* Allocate space for word vectors and context word vectors, and correspodning gradsq */
         a = posix_memalign((void **)&W, 128, vocab_size * vector_size * sizeof(real)); // Might perform better than malloc
         if (W == NULL) {
@@ -160,9 +160,14 @@ void *glove_thread(void *vid) {
         if (feof(fin)) break;
         if (cr.word1 < 1 || cr.word2 < 1 || cr.word1 == cr.word2) { continue; }
         
-        /* Get location of words in W & gradsq */
-        l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
-        l2 = (cr.word2 - 1LL) * vector_size; // context words in the same vector space as center words
+        if (model == 0) {
+            /* Get location of words in W & gradsq */
+            l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
+            l2 = (cr.word2 - 1LL) * vector_size; // context words in the same vector space as center words
+        } else {
+            l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
+            l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size); // shift by vocab_size to get separate vectors for context words
+        }
         
         /* Calculate cost, save diff for gradients */
         diff = 0;
