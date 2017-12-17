@@ -43,6 +43,7 @@ typedef struct cooccur_rec {
 
 int write_header=0; //0=no, 1=yes; writes vocab_size/vector_size as first line for use with some libraries, such as gensim.
 int verbose = 2; // 0, 1, or 2
+int model = 1; //0, 1, or 2
 int use_unk_vec = 1; // 0 or 1
 int num_threads = 8; // pthreads
 int num_iter = 25; // Number of full passes through cooccurrence matrix
@@ -388,8 +389,12 @@ int main(int argc, char **argv) {
         printf("Usage options:\n");
         printf("\t-verbose <int>\n");
         printf("\t\tSet verbosity: 0, 1, or 2 (default)\n");
-    printf("\t-write-header <int>\n");
-    printf("\t\tIf 1, write vocab_size/vector_size as first line. Do nothing if 0 (default).\n");
+        printf("\t\tModel and word vector output; default 0\n");
+        printf("\t\t   0: center word vectors are same as context word vectors\n");
+        printf("\t\t   1: different center and context word vectors, output both of them\n");
+        printf("\t\t   2: different center and context word vectors, output center vectors + context vectors\n");
+        printf("\t-write-header <int>\n");
+        printf("\t\tIf 1, write vocab_size/vector_size as first line. Do nothing if 0 (default).\n");
         printf("\t-vector-size <int>\n");
         printf("\t\tDimension of word vector representations (excluding bias term); default 50\n");
         printf("\t-threads <int>\n");
@@ -424,6 +429,7 @@ int main(int argc, char **argv) {
     } else {
     if ((i = find_arg((char *)"-write-header", argc, argv)) > 0) write_header = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-verbose", argc, argv)) > 0) verbose = atoi(argv[i + 1]);
+        if ((i = find_arg((char *)"-model", argc, argv)) > 0) model = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-vector-size", argc, argv)) > 0) vector_size = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-iter", argc, argv)) > 0) num_iter = atoi(argv[i + 1]);
         if ((i = find_arg((char *)"-threads", argc, argv)) > 0) num_threads = atoi(argv[i + 1]);
