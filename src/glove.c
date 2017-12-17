@@ -298,9 +298,7 @@ int save_params(int nb_iter) {
 
         if (use_unk_vec) {
             real* unk_vec = (real*)calloc(vector_size, sizeof(real));
-            if (model > 0) {
-                real* unk_context = (real*)calloc((vector_size + 1), sizeof(real));
-            }
+            real* unk_context = (real*)calloc(vector_size, sizeof(real));
             word = "<unk>";
 
             int num_rare_words = vocab_size < 100 ? vocab_size : 100;
