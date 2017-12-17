@@ -298,6 +298,9 @@ int save_params(int nb_iter) {
 
         if (use_unk_vec) {
             real* unk_vec = (real*)calloc(vector_size, sizeof(real));
+            if (model > 0) {
+                real* unk_context = (real*)calloc((vector_size + 1), sizeof(real));
+            }
             word = "<unk>";
 
             int num_rare_words = vocab_size < 100 ? vocab_size : 100;
@@ -305,6 +308,9 @@ int save_params(int nb_iter) {
             for (a = vocab_size - num_rare_words; a < vocab_size; a++) {
                 for (b = 0; b < vector_size; b++) {
                     unk_vec[b] += W[a * vector_size + b] / num_rare_words;
+                    if (model > 0) {
+                        unk_context[b] += W[(vocab_size + a) * vector_size + b] / num_rare_words;
+                    }
                 }
             }
 
