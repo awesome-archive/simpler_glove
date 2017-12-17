@@ -159,13 +159,12 @@ void *glove_thread(void *vid) {
         fread(&cr, sizeof(CREC), 1, fin);
         if (feof(fin)) break;
         if (cr.word1 < 1 || cr.word2 < 1 || cr.word1 == cr.word2) { continue; }
-
+        
+        /* Get location of words in W & gradsq */
+        l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
         if (model == 0) {
-            /* Get location of words in W & gradsq */
-            l1 = (cr.word1 - 1LL) * vector_size; // cr word indices start at 1
             l2 = (cr.word2 - 1LL) * vector_size; // context words in the same vector space as center words
         } else {
-            l1 = (cr.word1 - 1LL) * (vector_size + 1); // cr word indices start at 1
             l2 = ((cr.word2 - 1LL) + vocab_size) * (vector_size); // shift by vocab_size to get separate vectors for context words
         }
 
