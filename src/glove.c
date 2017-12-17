@@ -279,7 +279,14 @@ int save_params(int nb_iter) {
             if (strcmp(word, "<unk>") == 0) return 1;
             fprintf(fout, "%s",word);
             // Save word vectors
-            for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * vector_size + b]);
+            if (model == 0) { // just one piece of word vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * vector_size + b]);
+            }
+            if (model == 1) // center vectors concat context vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * vector_size + b]);
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[(vocab_size + a) * vector_size + b]);
+            if (model == 2) // center vectors + context vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", W[a * vector_size + b] + W[(vocab_size + a) * vector_size + b]);
             fprintf(fout,"\n");
             if (save_gradsq > 0) { // Save gradsq
                 fprintf(fgs, "%s",word);
@@ -303,7 +310,15 @@ int save_params(int nb_iter) {
 
             fprintf(fout, "%s",word);
             // Save word vectors
-            for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
+            if (model == 0) { // just one piece of word vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
+            }
+            if (model == 1) // center vectors concat context vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b]);
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_context[b]);
+            if (model == 2) // center vectors + context vectors
+                for (b = 0; b < vector_size; b++) fprintf(fout," %lf", unk_vec[b] + unk_context[b]);
+            fprintf(fout,"\n");
             fprintf(fout,"\n");
 
             free(unk_vec);
