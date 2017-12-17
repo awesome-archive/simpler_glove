@@ -441,7 +441,7 @@ int main(int argc, char **argv) {
         printf("\t-iter <int>\n");
         printf("\t\tNumber of training iterations; default 25\n");
         printf("\t-eta <float>\n");
-        printf("\t\tInitial learning rate; default 0.05\n");
+        printf("\t\tInitial learning rate; default 0.1\n");
         printf("\t-alpha <float>\n");
         printf("\t\tParameter in exponent of weighting function; default 0.75\n");
         printf("\t-x-max <float>\n");
