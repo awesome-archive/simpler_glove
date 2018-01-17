@@ -12,6 +12,8 @@
 
 Oringal glove model: https://github.com/stanfordnlp/GloVe
 
+相比原版glove：修改了cooccur.c和glove.c两个文件。
+
 <a href="http://kexue.fm/archives/4667/" target="_blank">更别致的词向量模型(一)：simpler glove</a>
 
 <a href="http://kexue.fm/archives/4669/" target="_blank">更别致的词向量模型(二)：对语言进行建模</a>
