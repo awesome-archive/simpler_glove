@@ -252,7 +252,7 @@ int save_params(int nb_iter) {
 
             fgs = fopen(output_file_gsq,"wb");
             if (fgs == NULL) {fprintf(stderr, "Unable to open file %s.\n",save_gradsq_file); return 1;}
-            if (mode == 0) {
+            if (model == 0) {
                 for (a = 0; a < (long long)vocab_size * vector_size; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
             } else {
                 for (a = 0; a < 2 * (long long)vocab_size * vector_size; a++) fwrite(&gradsq[a], sizeof(real), 1,fgs);
