@@ -1,8 +1,18 @@
 ## Simpler GloVe: A Simpler Model for Word Representation from Glove
 
-Change：share word vectors and context vectors.
+以互信息为训练目标的词向量模型。
+
+2017.12.16更新：提供多种模型组合
+
+> 0:上下文向量和中心词向量共用一组词向量，这种词向量在语义捕捉方面效果会比较好；
+
+> 1:上下文向量和中心词向量用不同的词向量，每个词的向量为两种向量的直接拼接，这种词向量会在语法任务上比较好；
+
+> 2:上下文向量和中心词向量用不同的词向量，每个词的向量为两种向量的求和，这种词向量表现应该跟0类似。
 
 Oringal glove model: https://github.com/stanfordnlp/GloVe
+
+相比原版glove：修改了cooccur.c和glove.c两个文件。
 
 <a href="http://kexue.fm/archives/4667/" target="_blank">更别致的词向量模型(一)：simpler glove</a>
 
